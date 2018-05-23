@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context" 
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"  
+	xmlns:jee="http://www.springframework.org/schema/jee" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.2.xsd
+		http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.2.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.2.xsd
+		http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa-1.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd">
+	
+	<!-- 配置sqlsessionfactorybean，该配置器会加载连接池，并扫描制定包下的配置文件 -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+	<property name="dataSource" ref="dataSource"/>
+	<property name="mapperLocations">
+	<list><value>classpath:cn/tedu/test/main/dao/*.xml</value></list>
+	</property>
+	</bean>
+	
+	<!-- 加载jdbc.properties文件（一般加载多个文件时可考虑使用此方式） -->
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:jdbc.properties</value>
+				<!-- <value>classpath:redis.properties</value> -->
+			</list>
+		</property>
+	</bean>
+	
+	
+	<!-- 配置MappersacannerConfigurer，该配置器会扫描制指定包下的映射器，并且调用getbean方法，返回
+	一个对象，id默认是首字母小写 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+	<property name="basePackage" value="cn.tedu.test.main.dao"/>
+	</bean>
+	<!-- 配置spring的生命式事物管理 -->
+	<bean id="txMapper" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+	<property name="dataSource" ref="dataSource"/>
+	</bean>
+   <!--设置注解驱动的事务管理  -->
+   <tx:annotation-driven transaction-manager="txManager"/>
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   <!-- 配置druid -->
+
+	
+  <!--   配置druid监控spring jdbc -->
+    <bean id="druid-stat-interceptor" class="com.alibaba.druid.support.spring.stat.DruidStatInterceptor"></bean>
+    <bean id="druid-stat-pointcut" class="org.springframework.aop.support.JdkRegexpMethodPointcut" scope="prototype">
+        <property name="patterns">
+            <list>
+              <!--   针对项目中的Service层调用进行监控 -->
+                <value>cn.tedu.test.main.service.*</value>
+            </list>
+        </property>
+    </bean>
+     
+    <aop:config>
+        <aop:advisor advice-ref="druid-stat-interceptor" pointcut-ref="druid-stat-pointcut" />
+    </aop:config>
+   
+	<!-- 配置druid连接池 -->
+	<bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter"
+		lazy-init="true">
+		<description>状态过滤器</description>
+		<!-- 通过slowSqlMillis用来配置sql慢的标准 -->
+		<property name="slowSqlMillis" value="3000" />
+		<!-- 以日志形式输出执行效率慢的sql -->
+		<property name="logSlowSql" value="true" />
+		<!-- 通过mergesql属性，合并sql -->
+		<property name="mergeSql" value="true" />
+	</bean>
+	
+	
+	
+	
+	<!-- 配置druid打他Source连接池。其中可通过$(key)获取properties文件中值 -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+		destroy-method="close" init-method="init" lazy-init="true">
+		<property name="driverClassName" value="${jdbc.driver}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+		<!-- 初始化链接大小 -->
+		<property name="initialSize" value="${jdbc.initialSize}" />
+		<!-- 连接池最大数量 -->
+		<property name="maxActive" value="${jdbc.maxActive}" />
+		<!-- 连接池最小空闲 -->
+		<property name="minIdle" value="${jdbc.minIdle}" />
+		<!-- 获取链接最大等待时间 -->
+		<!-- <property name="maxWait" value="${jdbc.maxWait}" /> -->
+		<!-- 配置maxWait之后缺省启用公平锁，并发效率会有所下降，如果需要可以通过配置useUnfairlock属性为true使用非公平锁 -->
+		<!-- <property name="useUnfairLock" value="true" />
+		<property name="defaultReadOnly" value="false" /> -->
+		
+		<!-- 通过配置StatFilter,打开监控台统计功能 -->
+	    <property name="proxyFilters">
+			<list>
+				<ref bean="stat-filter" />
+			</list>
+		</property>
+		<property name="filters" value="${jdbc.druid.filters}" />
+	</bean>
+
+
+	
+	
+	
+	
+</beans>
